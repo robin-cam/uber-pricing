@@ -19,7 +19,7 @@ library(readxl)
 library(janitor)
 
 
-df_raw <- readxl::read_excel("/Users/user/OneDrive/Documents/Personal/projects of sorts/Taxi Data.xlsx")
+df_raw <- readxl::read_excel("Taxi Data.xlsx")
 
 df <- df_raw %>%
   clean_names() %>%
