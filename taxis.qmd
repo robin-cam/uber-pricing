@@ -1,0 +1,134 @@
+---
+title: "Taxi"
+author: "Robin Cameron"
+format: html
+editor: visual
+---
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(broom)
+library(lubridate)  
+library(hms)         
+library(scales)     
+library(readxl)
+library(janitor)
+
+
+df_raw <- readxl::read_excel("/Users/user/OneDrive/Documents/Personal/projects of sorts/Taxi Data.xlsx")
+
+df <- df_raw %>%
+  clean_names() %>%
+  mutate(
+    date          = as_date(date),
+    hour          = hour(as_hms(time)) + minute(as_hms(time)) / 60,
+    daypart       = case_when(
+      hour >= 6  & hour < 10 ~ "morning rush",
+      hour >= 10 & hour < 16 ~ "daytime",
+      hour >= 16 & hour < 19 ~ "evening rush",
+      hour >= 19             ~ "evening",
+      TRUE                   ~ "late night"
+    ),
+    cost_per_mile = cost / miles
+  )
+```
+
+This report explores whether taxi cost per mile behaves like a fixed rate, how it varies by country, and how it varies by date and time of day. All of this data is from myself and friends. None of us seem to use Uber that often and about half the time it seems to be while we're on holiday. This project is far from serious and didn't take particularly long, mainly a brush up before heading back to uni.
+
+## Cost per mile
+
+```{r}
+#| warning: false
+#| message: false
+#| echo: false
+ggplot(df, aes(x = cost_per_mile)) +
+  geom_histogram(bins = 10, fill = "steelblue", colour = "white") +
+  labs(title = "Distribution of cost per mile", x = "£ per mile", y = "count")
+```
+
+Cost per mile is far from a fixed rate. It ranges from under £2/mile to over £10/mile, with a coefficient of variation above 0.5. The spread is more than half the size of the average itself, so "cost per mile" alone is not a reliable pricing metric for this data.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+ggplot(df, aes(x = miles, y = cost_per_mile, colour = country)) +
+  geom_point(size = 2) +
+  geom_smooth(method = "loess", se = FALSE, colour = "black") +
+  labs(title = "Cost per mile falls as trips get longer", x = "Miles", y = "£ per mile")
+
+```
+
+There's a clear negative relationship between trip length and cost per mile: short trips are consistently the most expensive per mile, and the rate drops off as distance increases. This fits how taxi/rideshare pricing usually works, a flat base fare plus a per-mile and/or a per-minute rate. Cost per mile isn't inconsistent by accident, it's a predictable side effect of a base-fare-plus-rate pricing model, not evidence of random or unfair pricing.
+
+## Geographical impacts
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+df %>%
+  filter(!is.na(cost_per_mile)) %>%
+  group_by(country) %>%
+  summarise(n = n(), mean_cpm = mean(cost_per_mile), sd_cpm = sd(cost_per_mile)) %>%
+  arrange(desc(mean_cpm))
+```
+
+Scotland has the highest average cost per mile of any country in the data, noticeably above Canada and the UAE. This lines up with the trip-length pattern above. Scotland trips are almost all short (under 2 miles), so they're hit hardest by the base fare. Canada, by contrast, has the lowest average cost per mile and the most trips after Scotland, giving a reasonably stable estimate. Canada's trips also tend to be longer.
+
+Spain, the UAE, and the USA each only have one or two trips, so their averages shouldn't be read as representative rates for those countries as they're single data points, not trends.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#ggplot(df, aes(x = fct_reorder(country, cost_per_mile, .fun = median),
+               #y = cost_per_mile, fill = country)) +
+  #geom_boxplot(show.legend = FALSE) +
+  #geom_jitter(width = 0.1, alpha = 0.6) +
+  #coord_flip() +
+  #labs(title = "Cost per mile by country", x = NULL, y = "£ per mile")
+```
+
+## Time impacts
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+ggplot(df, aes(x = date, y = cost_per_mile, colour = country)) +
+  geom_point(size = 2) +
+  labs(title = "Cost per mile over time", x = NULL, y = "£ per mile")
+```
+
+There's no obvious long-term trend in cost per mile across the 2-ish years of data, points are scattered rather than drifting up or down over time. The colours mostly separate into clusters by date because trips from the same country tend to have been logged in bursts (e.g. the Canada trips cluster around May–June 2025), so this chart is really showing when each country was visited more than a genuine time trend.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+ggplot(df, aes(x = hour, y = cost_per_mile)) +
+  geom_point(size = 2, colour = "darkorange") +
+  geom_smooth(method = "loess", se = FALSE) +
+  scale_x_continuous(breaks = seq(0, 24, 4)) +
+  labs(title = "Cost per mile by time of day", x = "Hour of day", y = "£ per mile")
+```
+
+Cost per mile trends higher in the early hours (roughly midnight–4am) than during the day, consistent with late-night surge pricing or simply late-night trips tending to be short hops home. The smoothed line should be read cautiously though as the data is concentrated in a few hours of the day rather than spread evenly across all 24, so the trend is driven by a handful of clusters, not a dense sample at every hour.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+ggplot(df, aes(x = daypart, y = cost_per_mile, fill = daypart)) +
+  geom_boxplot(show.legend = FALSE) +
+  labs(title = "Cost per mile by part of day", x = NULL, y = "£ per mile")
+```
+
+Grouping into dayparts further suggests this pattern, "late night" trips have the highest average cost per mile and "evening rush" and "morning rush" the lowest. But most dayparts only have one or two trips ("morning rush" and "daytime" have just one each), so while the direction is suggestive, it isn't a robust finding yet.
+
+## Summary
