@@ -86,12 +86,12 @@ Spain, the UAE, and the USA each only have one or two trips, so their averages s
 #| echo: false
 #| message: false
 #| warning: false
-#ggplot(df, aes(x = fct_reorder(country, cost_per_mile, .fun = median),
-               #y = cost_per_mile, fill = country)) +
-  #geom_boxplot(show.legend = FALSE) +
-  #geom_jitter(width = 0.1, alpha = 0.6) +
-  #coord_flip() +
-  #labs(title = "Cost per mile by country", x = NULL, y = "£ per mile")
+ggplot(df, aes(x = fct_reorder(country, cost_per_mile, .fun = median),
+               y = cost_per_mile, fill = country)) +
+  geom_boxplot(show.legend = FALSE) +
+  geom_jitter(width = 0.1, alpha = 0.6) +
+  coord_flip() +
+  labs(title = "Cost per mile by country", x = NULL, y = "£ per mile")
 ```
 
 ## Time impacts
@@ -132,3 +132,5 @@ ggplot(df, aes(x = daypart, y = cost_per_mile, fill = daypart)) +
 Grouping into dayparts further suggests this pattern, "late night" trips have the highest average cost per mile and "evening rush" and "morning rush" the lowest. But most dayparts only have one or two trips ("morning rush" and "daytime" have just one each), so while the direction is suggestive, it isn't a robust finding yet.
 
 ## Summary
+
+There are serious flaws in this data set. The scotland data is mainly from Edinburgh and Glasgow (the likley two most expensive cities), whereas the english data is primarily from around lincoln (a rather inexpensive area). The issues with these data are endless.
